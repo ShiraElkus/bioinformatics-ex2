@@ -2,21 +2,19 @@ from __future__ import print_function
 import collections
 import re
 import random
-import csv
 
 
 ##############################################################################
 # Program parameters
 
 # Path to the text file containing the ciphertext
-INFILE = 'enc.txt'
+INFILE = 'ciphertext.txt'
 
-# Path to the text files containing the reference text
-REFFILE1 = 'Letter_Freq.txt'
-REFFILE = 'Letter2_Freq.txt'
+# Path to the text file containing the reference text
+REFFILE = 'paradiso.txt'
 
 # Encrypted chars in the ciphertext
-CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+CHARS = 'ABCDEFGHILMNOPQRSTUVZ'
 
 # Size of the population to use for the genetic algorithm
 POPULATION_SIZE = 50
@@ -40,7 +38,6 @@ MUTATIONS_COUNT = 1
 ##############################################################################
 # Implementation
 
-# Concatenate 2 letters at a time
 def pairwise(iterable):
     prev = None
 
@@ -50,23 +47,21 @@ def pairwise(iterable):
         prev = item
 
 
-def bigram(a):
-    with open(f"{a}") as file:
-        my_dict = {}
-        for line in file:
-            if line != "\n":
-                words = line.strip().split("\t")
+def bigram(text):
+    counter = collections.Counter()
+    words = re.sub('[^{}]'.format(CHARS), ' ', text).split()
 
-    return 0
+    for word in words:
+        for pair in pairwise(word):
+            counter[pair] += 1
 
+    return counter
 
 
 def decode(ciphertext, key):
     cleartext = ''
-    with open(f"{ciphertext}") as f:
-        for line in f:
-            for ch in line:
-                    cleartext += str(key.get(ch))
+    for char in ciphertext:
+        cleartext += key.get(char, char)
     return cleartext
 
 
@@ -106,14 +101,12 @@ def update_mapping(mapping, char, repl):
 ##############################################################################
 # Genetic algorithm routines
 
-def select(population, file, ref_bigram):
+def select(population, ciphertext, ref_bigram):
     scores = []
 
     # Compute the score of each solution
     for p in population:
-        d = decode(INFILE, p)
-        s = score(d, ref_bigram)
-        scores.append((s, p))
+        scores.append((score(decode(ciphertext, p), ref_bigram), p))
 
     # Sort the solutions by their score
     sorted_population = sorted(scores, reverse=True)
@@ -167,7 +160,8 @@ def score(text, ref_bigram):
 
 def decrypt():
     # Read the reference text into memory
-
+    with open(REFFILE) as fh:
+        reftext = fh.read().upper()
 
     # Analyze the reference text and compute a mapping of each pair of letters
     # to the number of occurrences in the reference text
@@ -198,11 +192,11 @@ def decrypt():
     #        'ZZ': 103,
     #    }
     #
-    ref_bigram = bigram(REFFILE)
+    ref_bigram = bigram(reftext)
 
     # Read the ciphertext into memory
-    # with open(INFILE) as fh:
-    #     ciphertext = fh.read().upper()
+    with open(INFILE) as fh:
+        ciphertext = fh.read().upper()
 
     # Create an initial population of random possible solutions
     population = [init_mapping() for i in range(POPULATION_SIZE)]
@@ -220,7 +214,7 @@ def decrypt():
         population = generate(population)
 
         # Select the TOP_POPULATION best solutions from the current population
-        best_score, population = select(population, INFILE, ref_bigram)
+        best_score, population = select(population, ciphertext, ref_bigram)
 
         # Update the stability check state with the current best score
         if best_score > last_score:
@@ -259,7 +253,7 @@ def decrypt():
     #     }
     #
     print('Best solution found after {} iterations:'.format(iterations))
-    print(decode(INFILE, population[0]))
+    print(decode(ciphertext, population[0]))
     print(population[0])
 
 
