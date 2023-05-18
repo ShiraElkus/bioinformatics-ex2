@@ -1,5 +1,6 @@
 import math
 import random
+import sys
 from collections import Counter
 
 # The cipher file.
@@ -40,6 +41,12 @@ LETTERS_AMOUNT = 0
 
 # The amount of combinations in the cipher text.
 COMBINATIONS_AMOUNT = 0
+
+# The amount of changes in the mapping.
+CHANGES_AMOUNT = 10
+
+# The method way
+METHOD = sys.argv[1]
 
 
 def amount_in_text(cipher_text, option=1):
@@ -99,9 +106,9 @@ def crossover(cross1, cross2):
     return cross1
 
 
-def mutate(cross):
+def mutate(cross, value):
     # Copy the solution.
-    for i in range(MUTATIONS):
+    for i in range(value):
         # Get a random key from the solution.
         key = random.choice(list(cross.keys()))
         # Get a random value from the solution.
@@ -135,7 +142,7 @@ def generate_more_population(population):
         new_cross1 = cross1.copy()
         new_cross1 = crossover(new_cross1, cross2)
         # Mutate the first solution.
-        new_cross1 = mutate(new_cross1)
+        new_cross1 = mutate(new_cross1, MUTATIONS)
         new_cross1 = fix_mapping(new_cross1)
         new_population.append(new_cross1)
     return new_population
@@ -153,11 +160,17 @@ def decode_text(cipher_text, mapping):
 
 def fitness(cipher_text, population):
     scores = []
+    # Get the fitness score for each solution.
     for mapping in population:
         letter_appearances = {}
         pair_appearances = {}
-        decoded_text = decode_text(cipher_text, mapping)
-        # delete all non-letters
+        # Decode the text with the mapping.
+        if METHOD != 0:
+            new_mapping = mutate(mapping, CHANGES_AMOUNT)
+        else:
+            new_mapping = mapping
+        decoded_text = decode_text(cipher_text, new_mapping)
+        # Get the amount of appearances of each letter and pair.
         for letter in CHARS:
             if letter.isalpha():
                 letter_appearances[letter] = decoded_text.count(letter)
@@ -168,17 +181,26 @@ def fitness(cipher_text, population):
                 pair_appearances[decoded_text[i:i + 2]] += 1
         word_list = decoded_text.strip('\n').split(" ")
         word_amount = 0
+        # Get the amount of words that are in the dictionary.
         for word in word_list:
             if word in WORDS:
                 word_amount += 1
         score = len(word_list) - word_amount
+        # Calculate the score.
         for letter in letter_appearances:
             if LETTERFREQ_dict[letter] != 0:
                 score += abs(letter_appearances[letter] - LETTERFREQ_dict[letter])
         for pair in pair_appearances:
             if LETTERFREQ2_dict[pair] != 0:
                 score += abs(pair_appearances[pair] - LETTERFREQ2_dict[pair])
-        scores.append((score, mapping))
+        # Add the score to the scores list.
+        if METHOD == 2:
+            # If the method is 2, add the new mapping to the scores list. (Lamarckian)
+            scores.append((score, new_mapping))
+        else:
+            # If the method is 0 or 1, add the old mapping to the scores list. (Darwinian)
+            scores.append((score, mapping))
+    # Sort the scores list by the score.
     sorted_population = sorted(scores, key=lambda x: x[0])
     return [m for _, m in sorted_population[:CARRY_POPULATION]], sorted_population[0][0]
 
