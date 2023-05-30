@@ -22,7 +22,7 @@ LETTERFREQ2_dict = {}
 WORDS = []
 
 # The population amount for the genetic algorithm.
-POPULATION_AMOUNT = 1000
+POPULATION_AMOUNT = 120
 
 # The amount of top solutions to keep.
 CARRY_POPULATION = 5
@@ -33,7 +33,7 @@ MUTATIONS = 1
 TOURNAMENT_SIZE = 20
 
 # The amount of intervals for which the best score has to be stable before aborting the genetic algorithm.
-STABILITY_INTERVALS = 20
+STABILITY_INTERVALS = 25
 
 # The amount of letters in the cipher text.
 LETTERS_AMOUNT = 0
