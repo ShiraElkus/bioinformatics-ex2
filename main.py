@@ -1,7 +1,5 @@
 import random
-import sys
 from collections import Counter
-import matplotlib.pyplot as plt
 
 # The cipher file.
 CIPHERFILE = "enc.txt"
@@ -22,28 +20,29 @@ LETTERFREQ2_dict = {}
 # Word in english.
 WORDS = []
 
-# List of best scores for each iteration.
-BEST_SCORES = []
-# List of average score for each iteration.
-AVERAGE_SCORES = []
-# List of best mapping error percentage.
-BEST_ACCURACY_PERCENTAGE = []
-NUMBER_OF_ITERATIONS_RUN = []
-NUMBER_OF_CHECKS = 5
-
 # The population amount for the genetic algorithm.
-POPULATION_AMOUNT = 100
+POPULATION_AMOUNT = 120
 
 # The amount of top solutions to keep.
-CARRY_POPULATION = 5
+CARRY_POPULATION = 20
 
 # The mutations amount for each iteration.
 MUTATIONS = 1
 
-TOURNAMENT_SIZE = 20
+# The tournament size for the genetic algorithm.
+TOURNAMENT_SIZE = 30
+
+# The factor for the score of the words.
+WORD_FACTOR = 2
+
+# The factor for the score of the letters.
+LETTER_FACTOR = 3
+
+# The factor for the score of the combinations.
+COMBINATION_FACTOR = 4
 
 # The amount of intervals for which the best score has to be stable before aborting the genetic algorithm.
-STABILITY_INTERVALS = 20
+STABILITY_INTERVALS = 25
 
 # The amount of letters in the cipher text.
 LETTERS_AMOUNT = 0
@@ -52,10 +51,7 @@ LETTERS_AMOUNT = 0
 COMBINATIONS_AMOUNT = 0
 
 # The amount of changes in the mapping.
-CHANGES_AMOUNT = 5
-
-# The method way
-METHOD = int(sys.argv[1])
+CHANGES_AMOUNT = 3
 
 
 def amount_in_text(cipher_text, option=1):
@@ -203,16 +199,16 @@ def fitness(cipher_text, population):
                 pair_appearances[decoded_text[i:i + 2]] += 1 / COMBINATIONS_AMOUNT
         word_list = decoded_text.strip('\n').split(" ")
         # Get the amount of words that are in the dictionary.
-        score = 2 * (sum(word in WORDS for word in word_list) / len(word_list))
+        score = WORD_FACTOR * sum(word in WORDS for word in word_list) / len(word_list)
         # Get the absolute difference between the frequencies of the decoded text and the frequencies of the
         # English language letters.
         for letter in letter_appearances:
-            score += (1 - abs(letter_appearances[letter] - LETTERFREQ_dict[letter]))
+            score += LETTER_FACTOR * (1 - abs(letter_appearances[letter] - LETTERFREQ_dict[letter]))
         # Get the absolute difference between the frequencies of the decoded text and the frequencies of the
         # English language pairs.
         for pair in pair_appearances:
             if LETTERFREQ2_dict[pair] != 0:
-                score += (1 - abs(pair_appearances[pair] - LETTERFREQ2_dict[pair]))
+                score += COMBINATION_FACTOR * (1 - abs(pair_appearances[pair] - LETTERFREQ2_dict[pair]))
         # Add the score to the scores list.
         if METHOD == 2:
             # If the method is 2, add the new mapping to the scores list. (Lamarckian)
@@ -221,9 +217,6 @@ def fitness(cipher_text, population):
             # If the method is 0 or 1, add the old mapping to the scores list. (Darwinian)
             scores.append((score, mapping))
     # Sort the scores list by the score.
-    total_score = sum(score for score, _ in scores)
-    average_score = total_score / len(scores)
-    AVERAGE_SCORES.append(average_score)
     return scores
 
 
@@ -233,8 +226,6 @@ def decrypt(cipher_text):
     iterations = 0
     last_best_score = 0
     while same_population < STABILITY_INTERVALS:
-        print("Last best score:", last_best_score)
-        BEST_SCORES.append(last_best_score)
         # Sort the population by fitness.
         population = fitness(cipher_text, population)
         # Generate the new population with crossovers and mutations.
@@ -245,51 +236,18 @@ def decrypt(cipher_text):
             last_best_score = best_score
         else:
             same_population += 1
-    # with open('plain.txt', 'w') as f:
-    #     f.write(decode_text(cipher_text, population[0]))
-    # with open('perm.txt', 'w') as f:
-    #     f.write(str(population[0]))
-    # print(iterations)
-    draw_plot(iterations)
-    AVERAGE_SCORES.clear()
-    BEST_SCORES.clear()
-
-    return population[0], iterations
-
-
-def draw_plot(iterations):
-    # Plot 1: average scores and best scores per iteration.
-    iters = list(range(1, iterations + 1))
-    plt.plot(iters, AVERAGE_SCORES, label="Average Score")
-    plt.plot(iters, BEST_SCORES, label="Best Score")
-    plt.xlabel('Iteration')
-    plt.ylabel('Score')
-    if METHOD == 0:
-        m = "Classic"
-    elif METHOD == 1:
-        m = "Darwin"
-    else:
-        m = "Lamark"
-    plt.title(f'Fitness Progress\n Method = {m}')
-    plt.legend()
-    plt.show()
-
-    # Plot 2:
-
-
-def check_accuracy(my_mapping):
-    real_mapping = {'a': 'y', 'b': 'x', 'c': 'i', 'd': 'n', 'e': 't', 'f': 'o', 'g': 'z', 'h': 'j', 'i': 'c',
-                    'j': 'e', 'k': 'b', 'l': 'l', 'm': 'd', 'n': 'u', 'o': 'k', 'p': 'm', 'q': 's', 'r': 'v',
-                    's': 'p', 't': 'q', 'u': 'r', 'v': 'h', 'w': 'w', 'x': 'g', 'y': 'a', 'z': 'f'}
-    correct_letters = 0
-    for key in my_mapping:
-        if my_mapping[key] == real_mapping[key]:
-            correct_letters += 1
-    percentage_correct_letters = (correct_letters / len(CHARS) * 100)
-    return percentage_correct_letters
+    with open('plain.txt', 'w') as f:
+        f.write(decode_text(cipher_text, population[0]))
+    with open('perm.txt', 'w') as f:
+        f.write(str(population[0]))
+    print(iterations)
+    return population[0]
 
 
 if __name__ == "__main__":
+    METHOD = input("What method do you want to use? (0 - Classic, 1 - Darwinian, 2 - Lamarckian)\n")
+    while METHOD > 2 or METHOD < 0:
+        METHOD = input("Please enter a valid method.\n")
     with open(CIPHERFILE, "r") as cipher_file:
         ciphertext = cipher_file.read().lower()
     amount_in_text(ciphertext)
@@ -299,22 +257,4 @@ if __name__ == "__main__":
             if line == "\n":
                 break
             WORDS.append(line.rstrip('\n'))
-    avg_acc_methods = []
-    avg_iters_methods = []
-    for method in [0, 1, 2]:
-        METHOD = method
-        for i in range(1, NUMBER_OF_CHECKS):
-            best_mapping, iterations = decrypt(ciphertext)
-            percentage_correct = check_accuracy(best_mapping)
-            BEST_ACCURACY_PERCENTAGE.append(percentage_correct)
-            NUMBER_OF_ITERATIONS_RUN.append(iterations)
-            print(f"finished run number {i}")
-        average_acc = sum(k for k in BEST_ACCURACY_PERCENTAGE) / len(BEST_ACCURACY_PERCENTAGE)
-        average_iterations = sum(j for j in NUMBER_OF_ITERATIONS_RUN) / len(NUMBER_OF_ITERATIONS_RUN)
-        print(
-            f"Method: {METHOD}, average accuracy %: {average_acc}, average iterations: {average_iterations}\n\n")
-        avg_iters_methods.append(average_iterations)
-        avg_acc_methods.append(average_acc)
-        BEST_ACCURACY_PERCENTAGE = []
-        NUMBER_OF_ITERATIONS_RUN = []
-        iterations = 0
+    best_mapping = decrypt(ciphertext)
